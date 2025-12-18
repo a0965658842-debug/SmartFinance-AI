@@ -1,0 +1,100 @@
+
+import React, { useState } from 'react';
+import { GeminiService } from '../services/geminiService';
+import { Transaction, BankAccount, Category } from '../types';
+
+interface FinancialAdvisorProps {
+  transactions: Transaction[];
+  accounts: BankAccount[];
+  categories: Category[];
+}
+
+const FinancialAdvisor: React.FC<FinancialAdvisorProps> = ({ transactions, accounts, categories }) => {
+  const [advice, setAdvice] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+
+  const getAdvice = async () => {
+    setLoading(true);
+    const result = await GeminiService.getFinancialAdvice(transactions, accounts, categories);
+    setAdvice(result);
+    setLoading(false);
+  };
+
+  // Helper to highlight markdown-like parts (simple implementation)
+  const formatAdvice = (text: string) => {
+    return text.split('\n').map((line, i) => {
+      if (line.match(/^\d\./) || line.startsWith('-')) {
+        return <p key={i} className="pl-4 py-1 text-slate-700 border-l-2 border-blue-200 ml-2 mb-2 bg-blue-50/30 rounded-r-lg">{line}</p>;
+      }
+      if (line.includes(':')) {
+        const [title, content] = line.split(':');
+        return <p key={i} className="mb-2"><span className="font-bold text-blue-700">{title}:</span><span className="text-slate-600">{content}</span></p>;
+      }
+      return <p key={i} className="mb-2 text-slate-600">{line}</p>;
+    });
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn">
+      <div className="text-center space-y-4">
+        <div className="inline-block p-4 bg-gradient-to-tr from-blue-500 to-indigo-600 text-white rounded-3xl text-4xl mb-4 shadow-lg shadow-blue-200">
+          🤖
+        </div>
+        <h2 className="text-3xl font-bold text-slate-800">AI 智慧理財顧問</h2>
+        <p className="text-slate-500 max-w-lg mx-auto font-medium">
+          基於您的收支行為與資產狀況，由 Gemini AI 為您提供量身打造的財務健檢與具體建議。
+        </p>
+      </div>
+
+      <div className="bg-white rounded-[2.5rem] border border-slate-100 p-10 shadow-xl shadow-slate-100/50">
+        {!advice && !loading ? (
+          <div className="py-12 text-center">
+            <button
+              onClick={getAdvice}
+              className="px-10 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-2xl shadow-xl shadow-blue-200 transition-all hover:scale-105 active:scale-95"
+            >
+              🚀 獲取個人化理財建議
+            </button>
+            <p className="mt-4 text-xs text-slate-400 font-medium tracking-wide">系統將分析您最近的帳戶與交易紀錄</p>
+          </div>
+        ) : loading ? (
+          <div className="py-20 flex flex-col items-center space-y-6">
+            <div className="relative">
+                <div className="w-16 h-16 border-4 border-blue-100 rounded-full"></div>
+                <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin absolute top-0"></div>
+            </div>
+            <p className="text-blue-600 font-bold animate-pulse text-lg tracking-tight">正在深度分析您的財務大數據...</p>
+          </div>
+        ) : (
+          <div className="space-y-6 animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-6">
+                <div className="flex items-center gap-3">
+                    <span className="w-2 h-8 bg-blue-600 rounded-full"></span>
+                    <h3 className="text-2xl font-black text-slate-800">顧問建議報告</h3>
+                </div>
+                <button 
+                  onClick={getAdvice} 
+                  className="bg-slate-50 text-blue-600 px-4 py-2 rounded-xl text-sm hover:bg-blue-50 font-bold transition-colors"
+                >
+                  重新生成
+                </button>
+            </div>
+            <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
+                <div className="prose prose-blue max-w-none">
+                  {formatAdvice(advice)}
+                </div>
+            </div>
+            <div className="p-5 bg-indigo-50 rounded-2xl border border-indigo-100 flex items-start gap-3">
+                <span className="text-xl">💡</span>
+                <p className="text-xs text-indigo-700 leading-relaxed font-medium">
+                    提示：此建議僅供參考，不構成正式投資意見。實際財務規劃請務必洽詢專業人士，並根據自身風險承受能力進行決策。
+                </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default FinancialAdvisor;
