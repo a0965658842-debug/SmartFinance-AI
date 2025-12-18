@@ -1,14 +1,10 @@
-
 import { initializeApp, getApps } from "firebase/app";
 import type { FirebaseApp } from "firebase/app";
-// Fix: Consolidate getAuth and the Auth type into a single import block to ensure type visibility
 import { getAuth, Auth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import type { Firestore } from "firebase/firestore";
+import { getFirestore, Firestore } from "firebase/firestore";
 
 /**
- * 請在此處填入您的 Firebase 配置。
- * 這是在 Firebase Console 的「專案設定」中可以找到的 Web App 配置物件。
+ * Firebase 配置已直接寫入程式碼，方便開發與佈署。
  */
 const firebaseConfig = {
   apiKey: "AIzaSyAlYj_KfR7dLxWc-b1ISNe26vA5NDnToos",
@@ -23,7 +19,7 @@ let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let db: Firestore | null = null;
 
-// 檢查是否已填入有效配置（非預設字串）
+// 檢查配置是否有效
 const isValidConfig = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("YOUR_");
 
 if (isValidConfig) {
@@ -39,10 +35,10 @@ if (isValidConfig) {
       db = getFirestore(app);
     }
   } catch (e) {
-    console.warn("Firebase 初始化失敗，將進入展示模式。", e);
+    console.warn("Firebase 初始化失敗，系統切換至展示模式。", e);
   }
 } else {
-  console.info("Firebase 未配置或使用預設值，系統將運作於展示模式。");
+  console.info("Firebase 未配置，系統運作於展示模式（僅使用 LocalStorage）。");
 }
 
 export { auth, db };
