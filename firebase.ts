@@ -1,9 +1,11 @@
 
 import { initializeApp, getApps } from "firebase/app";
 import type { FirebaseApp } from "firebase/app";
-// Fix: Consolidating named and type imports from firebase/auth and firebase/firestore to ensure all members are correctly resolved by the compiler
-import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
+// Fix: Separating named imports for values and types to ensure all members are correctly resolved by the compiler
+import { getAuth } from "firebase/auth";
+import type { Auth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+import type { Firestore } from "firebase/firestore";
 
 /**
  * Firebase 配置已直接寫入程式碼，方便開發與佈署。

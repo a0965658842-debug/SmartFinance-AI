@@ -10,8 +10,12 @@ import {
   where,
   setDoc
 } from 'firebase/firestore';
-// Fix: Standard named imports for modular Firebase Auth functions to resolve "no exported member" errors in the current environment
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+// Fix: Standard modular named imports for Firebase Auth functions
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  updateProfile 
+} from 'firebase/auth';
 import { User, BankAccount, Transaction, Category } from '../types';
 import { DEFAULT_CATEGORIES, MOCK_ACCOUNTS, MOCK_TRANSACTIONS } from '../constants';
 
