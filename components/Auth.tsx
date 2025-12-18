@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { StorageService } from '../services/storageService';
 import { User, AppMode } from '../types';
@@ -30,11 +29,32 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
           setError('登入失敗，請檢查電子郵件與密碼。');
         }
       } else {
+        if (!displayName) {
+          setError('請輸入顯示名稱');
+          setLoading(false);
+          return;
+        }
         const user = await StorageService.register(email, password, displayName);
         onAuthSuccess(user, 'PRO');
       }
-    } catch (err) {
-      setError('操作過程中發生錯誤。');
+    } catch (err: any) {
+      console.error("Auth Error:", err);
+      // 將 Firebase 的具體錯誤訊息顯示出來
+      let friendlyMessage = '操作過程中發生錯誤。';
+      
+      if (err.code === 'auth/email-already-in-use') {
+        friendlyMessage = '該電子郵件已被註冊。';
+      } else if (err.code === 'auth/weak-password') {
+        friendlyMessage = '密碼強度不足（至少需 6 位字元）。';
+      } else if (err.code === 'auth/invalid-email') {
+        friendlyMessage = '無效的電子郵件格式。';
+      } else if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        friendlyMessage = '電子郵件或密碼錯誤。';
+      } else {
+        friendlyMessage = err.message || friendlyMessage;
+      }
+      
+      setError(friendlyMessage);
     } finally {
       setLoading(false);
     }
@@ -117,7 +137,11 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
                 />
               </div>
 
-              {error && <p className="text-red-500 text-sm font-medium text-center">{error}</p>}
+              {error && (
+                <div className="p-3 rounded-xl bg-red-50 border border-red-100 animate-fadeIn">
+                  <p className="text-red-500 text-sm font-bold text-center">{error}</p>
+                </div>
+              )}
 
               <button
                 type="submit"

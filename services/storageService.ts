@@ -10,7 +10,7 @@ import {
   where,
   setDoc
 } from 'firebase/firestore';
-// Fix: Consolidated import syntax for Firebase Auth modular SDK to ensure members are correctly identified
+// Fix: Standard named imports for modular Firebase Auth functions to resolve "no exported member" errors in the current environment
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { User, BankAccount, Transaction, Category } from '../types';
 import { DEFAULT_CATEGORIES, MOCK_ACCOUNTS, MOCK_TRANSACTIONS } from '../constants';
@@ -45,9 +45,13 @@ export class StorageService {
 
   static async register(email: string, password: string, displayName: string): Promise<User> {
     if (!auth) throw new Error("Firebase 未配置，請使用展示模式。");
+    
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     const user = credential.user;
+    
+    // 更新使用者名稱
     await updateProfile(user, { displayName });
+    
     return {
       id: user.uid,
       email: user.email || "",
