@@ -3,30 +3,27 @@ import { db, auth } from '../firebase';
 import { 
   collection, 
   addDoc, 
-  updateDoc, 
   deleteDoc, 
   doc, 
   getDocs, 
   query, 
   where,
-  setDoc,
-  getDoc
+  setDoc
 } from 'firebase/firestore';
+// Fix: Use consolidated import syntax for Firebase Auth modular SDK
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
-  updateProfile,
-  User as FirebaseUser
+  updateProfile
 } from 'firebase/auth';
 import { User, BankAccount, Transaction, Category } from '../types';
 import { DEFAULT_CATEGORIES, MOCK_ACCOUNTS, MOCK_TRANSACTIONS } from '../constants';
 
-const STORAGE_KEY = 'smart_finance_demo_db';
+const DEMO_KEY = 'smart_finance_demo_db';
 
 export class StorageService {
-  // --- DEMO MODE (Local Storage) ---
   private static getDemoStore(): any {
-    const data = localStorage.getItem(STORAGE_KEY);
+    const data = localStorage.getItem(DEMO_KEY);
     return data ? JSON.parse(data) : {
       accounts: MOCK_ACCOUNTS,
       transactions: MOCK_TRANSACTIONS,
@@ -35,12 +32,11 @@ export class StorageService {
   }
 
   private static saveDemoStore(store: any) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    localStorage.setItem(DEMO_KEY, JSON.stringify(store));
   }
 
-  // --- AUTHENTICATION ---
   static async login(email: string, password: string): Promise<User | null> {
-    if (!auth) throw new Error("Firebase Auth not initialized");
+    if (!auth) throw new Error("Firebase 未配置，請使用展示模式。");
     const credential = await signInWithEmailAndPassword(auth, email, password);
     const user = credential.user;
     return {
@@ -52,7 +48,7 @@ export class StorageService {
   }
 
   static async register(email: string, password: string, displayName: string): Promise<User> {
-    if (!auth) throw new Error("Firebase Auth not initialized");
+    if (!auth) throw new Error("Firebase 未配置，請使用展示模式。");
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     const user = credential.user;
     await updateProfile(user, { displayName });
@@ -64,10 +60,8 @@ export class StorageService {
     };
   }
 
-  // --- ACCOUNTS ---
   static async getAccounts(isDemo: boolean = false): Promise<BankAccount[]> {
     if (isDemo || !db || !auth?.currentUser) return this.getDemoStore().accounts;
-    
     const q = query(collection(db, "accounts"), where("userId", "==", auth.currentUser.uid));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankAccount));
@@ -82,13 +76,12 @@ export class StorageService {
       this.saveDemoStore(store);
       return store.accounts;
     }
-
     const userId = auth.currentUser.uid;
-    if (account.id && !account.id.startsWith('acc-') && isNaN(Number(account.id))) {
-       await setDoc(doc(db, "accounts", account.id), { ...account, userId });
+    const { id, ...data } = account;
+    if (id && id.length > 15) {
+      await setDoc(doc(db, "accounts", id), { ...data, userId });
     } else {
-       const { id, ...data } = account;
-       await addDoc(collection(db, "accounts"), { ...data, userId });
+      await addDoc(collection(db, "accounts"), { ...data, userId });
     }
     return this.getAccounts(false);
   }
@@ -104,10 +97,8 @@ export class StorageService {
     return this.getAccounts(false);
   }
 
-  // --- TRANSACTIONS ---
   static async getTransactions(isDemo: boolean = false): Promise<Transaction[]> {
     if (isDemo || !db || !auth?.currentUser) return this.getDemoStore().transactions;
-    
     const q = query(collection(db, "transactions"), where("userId", "==", auth.currentUser.uid));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Transaction));
@@ -122,12 +113,11 @@ export class StorageService {
       this.saveDemoStore(store);
       return store.transactions;
     }
-
     const userId = auth.currentUser.uid;
-    if (transaction.id && !transaction.id.startsWith('t') && isNaN(Number(transaction.id))) {
-      await setDoc(doc(db, "transactions", transaction.id), { ...transaction, userId });
+    const { id, ...data } = transaction;
+    if (id && id.length > 15) {
+      await setDoc(doc(db, "transactions", id), { ...data, userId });
     } else {
-      const { id, ...data } = transaction;
       await addDoc(collection(db, "transactions"), { ...data, userId });
     }
     return this.getTransactions(false);

@@ -21,22 +21,18 @@ const App: React.FC = () => {
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = auth?.onAuthStateChanged(async (firebaseUser) => {
-      const storedUser = localStorage.getItem('smart_finance_user');
-      const cachedUser = storedUser ? JSON.parse(storedUser) : null;
+    // 監聽 Firebase 登入狀態
+    const unsubscribe = auth?.onAuthStateChanged(async (fbUser) => {
+      const stored = localStorage.getItem('smart_finance_user');
+      const cached = stored ? JSON.parse(stored) : null;
 
-      if (firebaseUser) {
-        const userData = {
-          id: firebaseUser.uid,
-          email: firebaseUser.email || "",
-          displayName: firebaseUser.displayName || "",
-          isDemo: false
-        };
-        setUser(userData);
-        loadData(false);
-      } else if (cachedUser?.isDemo) {
-        setUser(cachedUser);
-        loadData(true);
+      if (fbUser) {
+        const u = { id: fbUser.uid, email: fbUser.email || "", displayName: fbUser.displayName || "", isDemo: false };
+        setUser(u);
+        await loadData(false);
+      } else if (cached?.isDemo) {
+        setUser(cached);
+        await loadData(true);
       } else {
         setUser(null);
       }
@@ -50,12 +46,12 @@ const App: React.FC = () => {
   }, []);
 
   const loadData = async (isDemo: boolean) => {
-    const [accData, transData] = await Promise.all([
+    const [accs, trans] = await Promise.all([
       StorageService.getAccounts(isDemo),
       StorageService.getTransactions(isDemo),
     ]);
-    setAccounts(accData);
-    setTransactions(transData);
+    setAccounts(accs);
+    setTransactions(trans);
   };
 
   const handleAuthSuccess = async (userData: User, mode: AppMode) => {
@@ -70,43 +66,30 @@ const App: React.FC = () => {
     localStorage.removeItem('smart_finance_user');
   };
 
-  // Handlers with isDemo flag
   const isDemo = user?.isDemo || false;
 
-  const addAccount = async (acc: BankAccount) => {
-    const updated = await StorageService.saveAccount(acc, isDemo);
+  const onAddAcc = async (a: BankAccount) => {
+    const updated = await StorageService.saveAccount(a, isDemo);
     setAccounts(updated);
   };
-  const editAccount = async (acc: BankAccount) => {
-    const updated = await StorageService.saveAccount(acc, isDemo);
+  const onEditAcc = async (a: BankAccount) => {
+    const updated = await StorageService.saveAccount(a, isDemo);
     setAccounts(updated);
   };
-  const deleteAccount = async (id: string) => {
-    if (confirm('確定要刪除此帳戶嗎？')) {
-      const updated = await StorageService.deleteAccount(id, isDemo);
-      setAccounts(updated);
-    }
+  const onDelAcc = async (id: string) => {
+    const updated = await StorageService.deleteAccount(id, isDemo);
+    setAccounts(updated);
   };
 
-  const addTransaction = async (t: Transaction) => {
+  const onAddTrans = async (t: Transaction) => {
     const updated = await StorageService.saveTransaction(t, isDemo);
     setTransactions(updated);
-    // 更新餘額
+    // 自動更新餘額
     const acc = accounts.find(a => a.id === t.accountId);
     if (acc) {
-      const newBalance = t.type === 'INCOME' ? acc.balance + t.amount : acc.balance - t.amount;
-      await editAccount({ ...acc, balance: newBalance });
+      const newBal = t.type === 'INCOME' ? acc.balance + t.amount : acc.balance - t.amount;
+      await onEditAcc({ ...acc, balance: newBal });
     }
-  };
-
-  const editTransaction = async (t: Transaction) => {
-    const updated = await StorageService.saveTransaction(t, isDemo);
-    setTransactions(updated);
-  };
-
-  const deleteTransaction = async (id: string) => {
-    const updated = await StorageService.deleteTransaction(id, isDemo);
-    setTransactions(updated);
   };
 
   if (isInitializing) {
@@ -117,25 +100,16 @@ const App: React.FC = () => {
     );
   }
 
-  if (!user) {
-    return <Auth onAuthSuccess={handleAuthSuccess} />;
-  }
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard': return <Dashboard accounts={accounts} transactions={transactions} categories={categories} />;
-      case 'accounts': return <Accounts accounts={accounts} onAdd={addAccount} onEdit={editAccount} onDelete={deleteAccount} />;
-      case 'transactions': return <Transactions transactions={transactions} accounts={accounts} categories={categories} onAdd={addTransaction} onEdit={editTransaction} onDelete={deleteTransaction} />;
-      case 'advisor': return <FinancialAdvisor transactions={transactions} accounts={accounts} categories={categories} />;
-      case 'fortune': return <FortuneSlip />;
-      case 'game': return <FinanceGame />;
-      default: return <Dashboard accounts={accounts} transactions={transactions} categories={categories} />;
-    }
-  };
+  if (!user) return <Auth onAuthSuccess={handleAuthSuccess} />;
 
   return (
     <Layout user={user} onLogout={handleLogout} activeTab={activeTab} setActiveTab={setActiveTab}>
-      {renderContent()}
+      {activeTab === 'dashboard' && <Dashboard accounts={accounts} transactions={transactions} categories={categories} />}
+      {activeTab === 'accounts' && <Accounts accounts={accounts} onAdd={onAddAcc} onEdit={onEditAcc} onDelete={onDelAcc} />}
+      {activeTab === 'transactions' && <Transactions transactions={transactions} accounts={accounts} categories={categories} onAdd={onAddTrans} onEdit={()=>{}} onDelete={()=>{}} />}
+      {activeTab === 'advisor' && <FinancialAdvisor transactions={transactions} accounts={accounts} categories={categories} />}
+      {activeTab === 'fortune' && <FortuneSlip />}
+      {activeTab === 'game' && <FinanceGame />}
     </Layout>
   );
 };
