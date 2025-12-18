@@ -10,12 +10,8 @@ import {
   where,
   setDoc
 } from 'firebase/firestore';
-// Fix: Use consolidated import syntax for Firebase Auth modular SDK
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword,
-  updateProfile
-} from 'firebase/auth';
+// Fix: Consolidated import syntax for Firebase Auth modular SDK to ensure members are correctly identified
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { User, BankAccount, Transaction, Category } from '../types';
 import { DEFAULT_CATEGORIES, MOCK_ACCOUNTS, MOCK_TRANSACTIONS } from '../constants';
 

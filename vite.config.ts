@@ -1,3 +1,4 @@
+
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -19,7 +20,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom', 'firebase', 'recharts'],
+          vendor: ['react', 'react-dom', 'recharts'],
           genai: ['@google/genai']
         }
       }
