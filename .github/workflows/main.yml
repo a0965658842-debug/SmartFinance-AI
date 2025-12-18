@@ -3,7 +3,7 @@ name: Build and Deploy to GitHub Pages
 on:
   push:
     branches:
-      - main  # 或是您的主分支名稱
+      - main
 
 permissions:
   contents: read
@@ -21,7 +21,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          # 移除 cache: 'npm' 以避免找不到 lock 檔案的錯誤
+          # 若您之後在本地運行 npm install 產生了 package-lock.json，可以再加回來
 
       - name: Install dependencies
         run: npm install
