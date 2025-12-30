@@ -3,21 +3,28 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, BankAccount, Category } from "../types";
 
 export class GeminiService {
+  /**
+   * 檢查金鑰是否有效存在
+   */
+  private static isKeyMissing(key: string | undefined): boolean {
+    return !key || key === "undefined" || key === "" || key === "null";
+  }
+
   private static async getAIInstance() {
     const apiKey = process.env.API_KEY;
     
-    // 檢查是否存在 aistudio 平台提供的 Key 選擇機制
+    // 優先檢查 aistudio 授權狀態
     if (typeof window !== 'undefined' && (window as any).aistudio) {
       const hasKey = await (window as any).aistudio.hasSelectedApiKey();
-      if (!hasKey && (!apiKey || apiKey === "undefined")) {
+      if (!hasKey && this.isKeyMissing(apiKey)) {
         throw new Error("AI_KEY_REQUIRED");
       }
-    } else if (!apiKey || apiKey === "undefined") {
-      throw new Error("API_KEY_MISSING");
+    } else if (this.isKeyMissing(apiKey)) {
+      throw new Error("AI_KEY_MISSING");
     }
     
-    // 每次呼叫時才建立實例，確保使用最新的 process.env.API_KEY
-    return new GoogleGenAI({ apiKey });
+    // 規範：每次呼叫前才建立實例，以抓取最新金鑰
+    return new GoogleGenAI({ apiKey: apiKey! });
   }
 
   static async getFinancialAdvice(
@@ -36,14 +43,15 @@ export class GeminiService {
         model: 'gemini-3-pro-preview',
         contents: `帳戶概況：\n${accounts.map(a => `${a.name}: $${a.balance}`).join('\n')}\n\n最近交易：\n${summary}`,
         config: {
-          systemInstruction: "你是一位專業理財專家。請針對使用者提供的財務數據提供 3-5 個具體、可執行的建議。請用繁體中文回答，語氣要專業且具備洞察力。",
+          systemInstruction: "你是一位專業理財專家。請針對數據提供 3-5 個具體建議。請用繁體中文回答。",
         }
       });
 
-      return response.text || "AI 顧問目前在沉思中，請稍後再試。";
+      return response.text || "AI 顧問暫時無法提供建議。";
     } catch (error: any) {
       console.error('Gemini Advisor Error:', error);
-      if (error.message.includes("Requested entity was not found")) {
+      // 規範：處理 Requested entity was not found 錯誤
+      if (error.message?.includes("Requested entity was not found") || error.message?.includes("404")) {
         throw new Error("AI_KEY_INVALID");
       }
       throw error;
@@ -53,15 +61,11 @@ export class GeminiService {
   static async getDailyFortune(): Promise<{ title: string; poem: string; meaning: string; luck: string }> {
     try {
       const ai = await this.getAIInstance();
-      const themes = ["偏財", "守成", "勤勉", "驚喜", "轉機", "穩健", "人脈", "靈感", "投資", "開源"];
-      const randomTheme = themes[Math.floor(Math.random() * themes.length)];
-      const seed = Math.random().toString(36).substring(7);
-
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `目前的主題關鍵字是：${randomTheme}，隨機標識：${seed}`,
+        contents: `生成隨機財運詩籤，時間戳記：${Date.now()}`,
         config: { 
-          systemInstruction: `為使用者生成一張繁體中文的財運詩籤。內容必須完全原創，每次都要有不同的意境。包含一個有古風味道的標題。四句詩要押韻且優美。解析要貼近現代生活中的金錢與理財觀念。幸運指數用星星符號 (⭐) 表示，1到5顆星。`,
+          systemInstruction: `為使用者生成一張繁體中文的財運詩籤。包含標題、四句詩、現代解析、幸運等級(⭐)。`,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -80,7 +84,7 @@ export class GeminiService {
       return JSON.parse(jsonStr);
     } catch (error: any) {
       console.error('Gemini Fortune Error:', error);
-      if (error.message.includes("Requested entity was not found")) {
+      if (error.message?.includes("Requested entity was not found") || error.message?.includes("404")) {
         throw new Error("AI_KEY_INVALID");
       }
       throw error;
