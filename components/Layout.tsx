@@ -14,6 +14,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, se
     { id: 'dashboard', label: '總覽', icon: '📊' },
     { id: 'accounts', label: '銀行帳戶', icon: '🏦' },
     { id: 'transactions', label: '財務紀錄', icon: '📝' },
+    { id: 'reports', label: '收支報表', icon: '📈' },
     { id: 'advisor', label: 'AI 財務顧問', icon: '🤖' },
     { id: 'fortune', label: '財運詩籤', icon: '🏮' },
     { id: 'game', label: '存錢大作戰', icon: '🎮' },

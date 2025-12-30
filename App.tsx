@@ -5,6 +5,7 @@ import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import Accounts from './components/Accounts';
 import Transactions from './components/Transactions';
+import FinancialReports from './components/FinancialReports';
 import FinancialAdvisor from './components/FinancialAdvisor';
 import FortuneSlip from './components/FortuneSlip';
 import FinanceGame from './components/FinanceGame';
@@ -128,20 +129,15 @@ const App: React.FC = () => {
       const target = transactions.find(t => t.id === id);
       if (!target) return;
 
-      // 1. 立即從前端列表中移除 (樂觀更新)
       setTransactions(prev => prev.filter(t => t.id !== id));
 
-      // 2. 更新關聯帳戶餘額
       const acc = accounts.find(a => a.id === target.accountId);
       if (acc) {
         const newBal = target.type === 'INCOME' ? acc.balance - target.amount : acc.balance + target.amount;
         await StorageService.saveAccount({ ...acc, balance: newBal }, isDemo);
       }
 
-      // 3. 執行後端刪除
       await StorageService.deleteTransaction(id, isDemo);
-      
-      // 4. 強制重新載入最新的、真實的資料列表
       await loadData(isDemo);
     } catch (e) {
       console.error("Delete error:", e);
@@ -174,6 +170,7 @@ const App: React.FC = () => {
           onDelete={onDelTrans} 
         />
       )}
+      {activeTab === 'reports' && <FinancialReports transactions={transactions} accounts={accounts} categories={categories} />}
       {activeTab === 'advisor' && <FinancialAdvisor transactions={transactions} accounts={accounts} categories={categories} />}
       {activeTab === 'fortune' && <FortuneSlip />}
       {activeTab === 'game' && <FinanceGame />}
