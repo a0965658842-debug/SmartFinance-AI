@@ -21,7 +21,6 @@ const App: React.FC = () => {
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
-    // 監聽 Firebase 登入狀態
     const unsubscribe = auth?.onAuthStateChanged(async (fbUser) => {
       const stored = localStorage.getItem('smart_finance_user');
       const cached = stored ? JSON.parse(stored) : null;
@@ -46,12 +45,16 @@ const App: React.FC = () => {
   }, []);
 
   const loadData = async (isDemo: boolean) => {
-    const [accs, trans] = await Promise.all([
-      StorageService.getAccounts(isDemo),
-      StorageService.getTransactions(isDemo),
-    ]);
-    setAccounts(accs);
-    setTransactions(trans);
+    try {
+      const [accs, trans] = await Promise.all([
+        StorageService.getAccounts(isDemo),
+        StorageService.getTransactions(isDemo),
+      ]);
+      setAccounts(accs);
+      setTransactions(trans);
+    } catch (e) {
+      console.error("Load Data Error:", e);
+    }
   };
 
   const handleAuthSuccess = async (userData: User, mode: AppMode) => {
@@ -70,25 +73,84 @@ const App: React.FC = () => {
 
   const onAddAcc = async (a: BankAccount) => {
     const updated = await StorageService.saveAccount(a, isDemo);
-    setAccounts(updated);
+    setAccounts([...updated]);
   };
+
   const onEditAcc = async (a: BankAccount) => {
     const updated = await StorageService.saveAccount(a, isDemo);
-    setAccounts(updated);
+    setAccounts([...updated]);
   };
+
   const onDelAcc = async (id: string) => {
+    if (!window.confirm('確定要刪除此帳戶嗎？')) return;
     const updated = await StorageService.deleteAccount(id, isDemo);
-    setAccounts(updated);
+    setAccounts([...updated]);
   };
 
   const onAddTrans = async (t: Transaction) => {
-    const updated = await StorageService.saveTransaction(t, isDemo);
-    setTransactions(updated);
-    // 自動更新餘額
+    // 預先計算新餘額
     const acc = accounts.find(a => a.id === t.accountId);
     if (acc) {
       const newBal = t.type === 'INCOME' ? acc.balance + t.amount : acc.balance - t.amount;
-      await onEditAcc({ ...acc, balance: newBal });
+      await StorageService.saveAccount({ ...acc, balance: newBal }, isDemo);
+    }
+    await StorageService.saveTransaction(t, isDemo);
+    await loadData(isDemo);
+  };
+
+  const onEditTrans = async (updatedTrans: Transaction) => {
+    try {
+      const oldTrans = transactions.find(t => t.id === updatedTrans.id);
+      if (!oldTrans) return;
+
+      // 1. 回滾舊金額
+      const oldAcc = accounts.find(a => a.id === oldTrans.accountId);
+      if (oldAcc) {
+        const revertedBal = oldTrans.type === 'INCOME' ? oldAcc.balance - oldTrans.amount : oldAcc.balance + oldTrans.amount;
+        await StorageService.saveAccount({ ...oldAcc, balance: revertedBal }, isDemo);
+      }
+
+      // 2. 套用新金額 (重新獲取帳戶以確保餘額正確)
+      const latestAccs = await StorageService.getAccounts(isDemo);
+      const newAcc = latestAccs.find(a => a.id === updatedTrans.accountId);
+      if (newAcc) {
+        const finalBal = updatedTrans.type === 'INCOME' ? newAcc.balance + updatedTrans.amount : newAcc.balance - updatedTrans.amount;
+        await StorageService.saveAccount({ ...newAcc, balance: finalBal }, isDemo);
+      }
+
+      await StorageService.saveTransaction(updatedTrans, isDemo);
+      await loadData(isDemo);
+    } catch (e) {
+      console.error("Edit error:", e);
+      alert("編輯紀錄時發生錯誤。");
+    }
+  };
+
+  const onDelTrans = async (id: string) => {
+    try {
+      const target = transactions.find(t => t.id === id);
+      if (!target) return;
+
+      // 樂觀更新：立即從 UI 移除
+      setTransactions(prev => prev.filter(t => t.id !== id));
+
+      // 1. 回滾帳戶餘額
+      const acc = accounts.find(a => a.id === target.accountId);
+      if (acc) {
+        const newBal = target.type === 'INCOME' ? acc.balance - target.amount : acc.balance + target.amount;
+        const updatedAccs = await StorageService.saveAccount({ ...acc, balance: newBal }, isDemo);
+        setAccounts([...updatedAccs]);
+      }
+
+      // 2. 執行後端刪除
+      await StorageService.deleteTransaction(id, isDemo);
+      
+      // 3. 最後再刷新一次確保同步
+      await loadData(isDemo);
+    } catch (e) {
+      console.error("Delete error:", e);
+      alert("刪除失敗，請重新載入。");
+      await loadData(isDemo); // 出錯時還原狀態
     }
   };
 
@@ -106,7 +168,16 @@ const App: React.FC = () => {
     <Layout user={user} onLogout={handleLogout} activeTab={activeTab} setActiveTab={setActiveTab}>
       {activeTab === 'dashboard' && <Dashboard accounts={accounts} transactions={transactions} categories={categories} />}
       {activeTab === 'accounts' && <Accounts accounts={accounts} onAdd={onAddAcc} onEdit={onEditAcc} onDelete={onDelAcc} />}
-      {activeTab === 'transactions' && <Transactions transactions={transactions} accounts={accounts} categories={categories} onAdd={onAddTrans} onEdit={()=>{}} onDelete={()=>{}} />}
+      {activeTab === 'transactions' && (
+        <Transactions 
+          transactions={transactions} 
+          accounts={accounts} 
+          categories={categories} 
+          onAdd={onAddTrans} 
+          onEdit={onEditTrans} 
+          onDelete={onDelTrans} 
+        />
+      )}
       {activeTab === 'advisor' && <FinancialAdvisor transactions={transactions} accounts={accounts} categories={categories} />}
       {activeTab === 'fortune' && <FortuneSlip />}
       {activeTab === 'game' && <FinanceGame />}

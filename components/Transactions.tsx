@@ -56,6 +56,12 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, accounts, cat
     setIsModalOpen(true);
   };
 
+  const handleDelete = (id: string) => {
+    if (window.confirm('確定要刪除這筆紀錄嗎？這將會自動調整關聯帳戶的餘額。')) {
+      onDelete(id);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -115,7 +121,7 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, accounts, cat
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right space-x-2">
                         <button onClick={() => openModal(t)} className="text-blue-500 hover:text-blue-700 font-medium text-sm">編輯</button>
-                        <button onClick={() => onDelete(t.id)} className="text-red-400 hover:text-red-600 font-medium text-sm">刪除</button>
+                        <button onClick={() => handleDelete(t.id)} className="text-red-400 hover:text-red-600 font-medium text-sm">刪除</button>
                     </td>
                   </tr>
                 );
@@ -163,6 +169,7 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, accounts, cat
                   <input
                     type="number"
                     required
+                    min="0"
                     value={formData.amount}
                     onChange={(e) => setFormData({ ...formData, amount: Number(e.target.value) })}
                     className={`w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold ${formData.type === 'INCOME' ? 'text-green-600' : 'text-red-500'}`}
@@ -177,7 +184,7 @@ const Transactions: React.FC<TransactionsProps> = ({ transactions, accounts, cat
                   className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-slate-700"
                 >
                   {accounts.map(acc => (
-                      <option key={acc.id} value={acc.id}>{acc.name} (${acc.balance})</option>
+                      <option key={acc.id} value={acc.id}>{acc.name} (${acc.balance.toLocaleString()})</option>
                   ))}
                 </select>
               </div>

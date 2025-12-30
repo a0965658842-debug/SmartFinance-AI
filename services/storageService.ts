@@ -8,9 +8,9 @@ import {
   getDocs, 
   query, 
   where,
-  setDoc
+  setDoc,
+  getDoc
 } from 'firebase/firestore';
-// Fix: Standard modular named imports for Firebase Auth functions
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
@@ -49,26 +49,19 @@ export class StorageService {
 
   static async register(email: string, password: string, displayName: string): Promise<User> {
     if (!auth) throw new Error("Firebase 未配置，請使用展示模式。");
-    
     const credential = await createUserWithEmailAndPassword(auth, email, password);
     const user = credential.user;
-    
-    // 更新使用者名稱
     await updateProfile(user, { displayName });
-    
-    return {
-      id: user.uid,
-      email: user.email || "",
-      displayName: displayName,
-      isDemo: false
-    };
+    return { id: user.uid, email: user.email || "", displayName: displayName, isDemo: false };
   }
 
   static async getAccounts(isDemo: boolean = false): Promise<BankAccount[]> {
     if (isDemo || !db || !auth?.currentUser) return this.getDemoStore().accounts;
     const q = query(collection(db, "accounts"), where("userId", "==", auth.currentUser.uid));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankAccount));
+    const fbAccounts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankAccount));
+    // 如果 FB 是空的且剛註冊，回傳模擬資料
+    return fbAccounts.length > 0 ? fbAccounts : this.getDemoStore().accounts;
   }
 
   static async saveAccount(account: BankAccount, isDemo: boolean = false): Promise<BankAccount[]> {
@@ -76,13 +69,14 @@ export class StorageService {
       const store = this.getDemoStore();
       const index = store.accounts.findIndex((a: any) => a.id === account.id);
       if (index >= 0) store.accounts[index] = account;
-      else store.accounts.push({ ...account, id: Date.now().toString() });
+      else store.accounts.push({ ...account, id: 'acc-' + Date.now() });
       this.saveDemoStore(store);
       return store.accounts;
     }
     const userId = auth.currentUser.uid;
     const { id, ...data } = account;
-    if (id && id.length > 15) {
+    // 判斷是否為 Firebase 文件 (通常由亂序字母數字組成)
+    if (id && id.length > 10 && !id.startsWith('acc-')) {
       await setDoc(doc(db, "accounts", id), { ...data, userId });
     } else {
       await addDoc(collection(db, "accounts"), { ...data, userId });
@@ -97,7 +91,13 @@ export class StorageService {
       this.saveDemoStore(store);
       return store.accounts;
     }
-    await deleteDoc(doc(db, "accounts", id));
+    try {
+      if (!id.startsWith('acc-')) {
+        await deleteDoc(doc(db, "accounts", id));
+      }
+    } catch (e) {
+      console.warn("Delete account failed:", e);
+    }
     return this.getAccounts(false);
   }
 
@@ -105,7 +105,8 @@ export class StorageService {
     if (isDemo || !db || !auth?.currentUser) return this.getDemoStore().transactions;
     const q = query(collection(db, "transactions"), where("userId", "==", auth.currentUser.uid));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Transaction));
+    const fbTrans = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Transaction));
+    return fbTrans.length > 0 ? fbTrans : this.getDemoStore().transactions;
   }
 
   static async saveTransaction(transaction: Transaction, isDemo: boolean = false): Promise<Transaction[]> {
@@ -113,13 +114,13 @@ export class StorageService {
       const store = this.getDemoStore();
       const index = store.transactions.findIndex((t: any) => t.id === transaction.id);
       if (index >= 0) store.transactions[index] = transaction;
-      else store.transactions.push({ ...transaction, id: Date.now().toString() });
+      else store.transactions.push({ ...transaction, id: 't' + Date.now() });
       this.saveDemoStore(store);
       return store.transactions;
     }
     const userId = auth.currentUser.uid;
     const { id, ...data } = transaction;
-    if (id && id.length > 15) {
+    if (id && id.length > 10 && !id.startsWith('t')) {
       await setDoc(doc(db, "transactions", id), { ...data, userId });
     } else {
       await addDoc(collection(db, "transactions"), { ...data, userId });
@@ -128,13 +129,24 @@ export class StorageService {
   }
 
   static async deleteTransaction(id: string, isDemo: boolean = false): Promise<Transaction[]> {
-    if (isDemo || !db) {
-      const store = this.getDemoStore();
-      store.transactions = store.transactions.filter((t: any) => t.id !== id);
-      this.saveDemoStore(store);
-      return store.transactions;
+    // 無論如何都先嘗試清理本地展示緩存
+    const store = this.getDemoStore();
+    const originalCount = store.transactions.length;
+    store.transactions = store.transactions.filter((t: any) => t.id !== id);
+    if (store.transactions.length !== originalCount) {
+        this.saveDemoStore(store);
     }
-    await deleteDoc(doc(db, "transactions", id));
+
+    if (isDemo || !db) return store.transactions;
+
+    // 正式模式：如果是真正的 Firebase ID 則從雲端刪除
+    if (id && id.length > 10 && !id.startsWith('t')) {
+        try {
+            await deleteDoc(doc(db, "transactions", id));
+        } catch (e) {
+            console.warn("Firestore delete transaction error:", e);
+        }
+    }
     return this.getTransactions(false);
   }
 
