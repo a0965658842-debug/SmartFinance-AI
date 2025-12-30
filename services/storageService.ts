@@ -57,11 +57,18 @@ export class StorageService {
 
   static async getAccounts(isDemo: boolean = false): Promise<BankAccount[]> {
     if (isDemo || !db || !auth?.currentUser) return this.getDemoStore().accounts;
-    const q = query(collection(db, "accounts"), where("userId", "==", auth.currentUser.uid));
-    const snapshot = await getDocs(q);
-    const fbAccounts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankAccount));
-    // 如果 FB 是空的且剛註冊，回傳模擬資料
-    return fbAccounts.length > 0 ? fbAccounts : this.getDemoStore().accounts;
+    
+    try {
+      const q = query(collection(db, "accounts"), where("userId", "==", auth.currentUser.uid));
+      const snapshot = await getDocs(q);
+      const fbAccounts = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as BankAccount));
+      
+      // 注意：不再檢查長度，空的就是空的，避免回退到模擬資料
+      return fbAccounts;
+    } catch (e) {
+      console.error("Firestore getAccounts error:", e);
+      return [];
+    }
   }
 
   static async saveAccount(account: BankAccount, isDemo: boolean = false): Promise<BankAccount[]> {
@@ -75,8 +82,7 @@ export class StorageService {
     }
     const userId = auth.currentUser.uid;
     const { id, ...data } = account;
-    // 判斷是否為 Firebase 文件 (通常由亂序字母數字組成)
-    if (id && id.length > 10 && !id.startsWith('acc-')) {
+    if (id && id.length > 15 && !id.startsWith('acc-')) {
       await setDoc(doc(db, "accounts", id), { ...data, userId });
     } else {
       await addDoc(collection(db, "accounts"), { ...data, userId });
@@ -85,15 +91,21 @@ export class StorageService {
   }
 
   static async deleteAccount(id: string, isDemo: boolean = false): Promise<BankAccount[]> {
-    if (isDemo || !db) {
+    if (isDemo || !db || !auth?.currentUser) {
       const store = this.getDemoStore();
       store.accounts = store.accounts.filter((a: any) => a.id !== id);
       this.saveDemoStore(store);
       return store.accounts;
     }
     try {
+      // 只有非模擬 ID 才去 Firestore 刪除
       if (!id.startsWith('acc-')) {
         await deleteDoc(doc(db, "accounts", id));
+      } else {
+        // 如果在正式模式刪除的是模擬資料，也要從本地緩存移除
+        const store = this.getDemoStore();
+        store.accounts = store.accounts.filter((a: any) => a.id !== id);
+        this.saveDemoStore(store);
       }
     } catch (e) {
       console.warn("Delete account failed:", e);
@@ -103,10 +115,19 @@ export class StorageService {
 
   static async getTransactions(isDemo: boolean = false): Promise<Transaction[]> {
     if (isDemo || !db || !auth?.currentUser) return this.getDemoStore().transactions;
-    const q = query(collection(db, "transactions"), where("userId", "==", auth.currentUser.uid));
-    const snapshot = await getDocs(q);
-    const fbTrans = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Transaction));
-    return fbTrans.length > 0 ? fbTrans : this.getDemoStore().transactions;
+    
+    try {
+      const q = query(collection(db, "transactions"), where("userId", "==", auth.currentUser.uid));
+      const snapshot = await getDocs(q);
+      const fbTrans = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Transaction));
+      
+      // 關鍵修正：如果是正式模式，直接回傳 Firestore 的結果（即使為空）
+      // 不再判斷 fbTrans.length > 0，否則會導致刪除最後一筆後又跑出模擬資料
+      return fbTrans;
+    } catch (e) {
+      console.error("Firestore getTransactions error:", e);
+      return [];
+    }
   }
 
   static async saveTransaction(transaction: Transaction, isDemo: boolean = false): Promise<Transaction[]> {
@@ -120,7 +141,7 @@ export class StorageService {
     }
     const userId = auth.currentUser.uid;
     const { id, ...data } = transaction;
-    if (id && id.length > 10 && !id.startsWith('t')) {
+    if (id && id.length > 15 && !id.startsWith('t')) {
       await setDoc(doc(db, "transactions", id), { ...data, userId });
     } else {
       await addDoc(collection(db, "transactions"), { ...data, userId });
@@ -129,24 +150,22 @@ export class StorageService {
   }
 
   static async deleteTransaction(id: string, isDemo: boolean = false): Promise<Transaction[]> {
-    // 無論如何都先嘗試清理本地展示緩存
+    // 永遠清理本地快取中的這筆 ID (預防萬一)
     const store = this.getDemoStore();
-    const originalCount = store.transactions.length;
     store.transactions = store.transactions.filter((t: any) => t.id !== id);
-    if (store.transactions.length !== originalCount) {
-        this.saveDemoStore(store);
-    }
+    this.saveDemoStore(store);
 
-    if (isDemo || !db) return store.transactions;
+    if (isDemo || !db || !auth?.currentUser) return store.transactions;
 
-    // 正式模式：如果是真正的 Firebase ID 則從雲端刪除
-    if (id && id.length > 10 && !id.startsWith('t')) {
+    // 正式模式：如果是 Firebase 的真正 ID，則執行遠端刪除
+    if (id && id.length > 15 && !id.startsWith('t')) {
         try {
             await deleteDoc(doc(db, "transactions", id));
         } catch (e) {
-            console.warn("Firestore delete transaction error:", e);
+            console.error("Firestore delete transaction failed:", e);
         }
     }
+    
     return this.getTransactions(false);
   }
 

@@ -50,8 +50,8 @@ const App: React.FC = () => {
         StorageService.getAccounts(isDemo),
         StorageService.getTransactions(isDemo),
       ]);
-      setAccounts(accs);
-      setTransactions(trans);
+      setAccounts([...accs]);
+      setTransactions([...trans]);
     } catch (e) {
       console.error("Load Data Error:", e);
     }
@@ -72,23 +72,22 @@ const App: React.FC = () => {
   const isDemo = user?.isDemo || false;
 
   const onAddAcc = async (a: BankAccount) => {
-    const updated = await StorageService.saveAccount(a, isDemo);
-    setAccounts([...updated]);
+    await StorageService.saveAccount(a, isDemo);
+    await loadData(isDemo);
   };
 
   const onEditAcc = async (a: BankAccount) => {
-    const updated = await StorageService.saveAccount(a, isDemo);
-    setAccounts([...updated]);
+    await StorageService.saveAccount(a, isDemo);
+    await loadData(isDemo);
   };
 
   const onDelAcc = async (id: string) => {
     if (!window.confirm('確定要刪除此帳戶嗎？')) return;
-    const updated = await StorageService.deleteAccount(id, isDemo);
-    setAccounts([...updated]);
+    await StorageService.deleteAccount(id, isDemo);
+    await loadData(isDemo);
   };
 
   const onAddTrans = async (t: Transaction) => {
-    // 預先計算新餘額
     const acc = accounts.find(a => a.id === t.accountId);
     if (acc) {
       const newBal = t.type === 'INCOME' ? acc.balance + t.amount : acc.balance - t.amount;
@@ -103,14 +102,12 @@ const App: React.FC = () => {
       const oldTrans = transactions.find(t => t.id === updatedTrans.id);
       if (!oldTrans) return;
 
-      // 1. 回滾舊金額
       const oldAcc = accounts.find(a => a.id === oldTrans.accountId);
       if (oldAcc) {
         const revertedBal = oldTrans.type === 'INCOME' ? oldAcc.balance - oldTrans.amount : oldAcc.balance + oldTrans.amount;
         await StorageService.saveAccount({ ...oldAcc, balance: revertedBal }, isDemo);
       }
 
-      // 2. 套用新金額 (重新獲取帳戶以確保餘額正確)
       const latestAccs = await StorageService.getAccounts(isDemo);
       const newAcc = latestAccs.find(a => a.id === updatedTrans.accountId);
       if (newAcc) {
@@ -131,26 +128,25 @@ const App: React.FC = () => {
       const target = transactions.find(t => t.id === id);
       if (!target) return;
 
-      // 樂觀更新：立即從 UI 移除
+      // 1. 立即從前端列表中移除 (樂觀更新)
       setTransactions(prev => prev.filter(t => t.id !== id));
 
-      // 1. 回滾帳戶餘額
+      // 2. 更新關聯帳戶餘額
       const acc = accounts.find(a => a.id === target.accountId);
       if (acc) {
         const newBal = target.type === 'INCOME' ? acc.balance - target.amount : acc.balance + target.amount;
-        const updatedAccs = await StorageService.saveAccount({ ...acc, balance: newBal }, isDemo);
-        setAccounts([...updatedAccs]);
+        await StorageService.saveAccount({ ...acc, balance: newBal }, isDemo);
       }
 
-      // 2. 執行後端刪除
+      // 3. 執行後端刪除
       await StorageService.deleteTransaction(id, isDemo);
       
-      // 3. 最後再刷新一次確保同步
+      // 4. 強制重新載入最新的、真實的資料列表
       await loadData(isDemo);
     } catch (e) {
       console.error("Delete error:", e);
-      alert("刪除失敗，請重新載入。");
-      await loadData(isDemo); // 出錯時還原狀態
+      alert("刪除失敗，請重新整理頁面。");
+      await loadData(isDemo);
     }
   };
 
