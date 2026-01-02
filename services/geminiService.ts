@@ -76,8 +76,9 @@ export class GeminiService {
         4. 請使用繁體中文。
       `;
 
+      // 使用 gemini-3-flash-preview 提供更快速且具備免費額度的服務
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
+        model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
           temperature: 0.7,

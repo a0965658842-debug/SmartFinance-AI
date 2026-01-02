@@ -59,7 +59,7 @@ const FinancialAdvisor: React.FC<FinancialAdvisorProps> = ({ transactions, accou
         </div>
         <h2 className="text-3xl font-black text-slate-800 tracking-tight">AI 智慧理財報告</h2>
         <p className="text-slate-500 max-w-lg mx-auto font-medium">
-          Gemini 3 Pro 會分析您的資產配置、收支佔比與儲蓄率，提供專屬的財務健檢建議。
+          使用高效能 Gemini 3 Flash 模型，分析您的資產配置與收支狀況，提供即時理財指引。
         </p>
       </div>
 
@@ -74,7 +74,7 @@ const FinancialAdvisor: React.FC<FinancialAdvisorProps> = ({ transactions, accou
               <div className="text-4xl mb-4">🔑</div>
               <h4 className="text-rose-800 font-bold text-lg mb-2">需要 API 金鑰連結</h4>
               <p className="text-rose-600 text-sm leading-relaxed">
-                由於本系統運行於安全環境，您需要連結自己的 Google AI API Key 才能啟動顧問功能。
+                由於本系統運行於瀏覽器端，您需要連結自己的 Google AI API Key 才能啟動免費層級的 AI 服務。
               </p>
             </div>
             <button
@@ -92,7 +92,7 @@ const FinancialAdvisor: React.FC<FinancialAdvisorProps> = ({ transactions, accou
             </div>
             <div className="text-center">
               <p className="text-blue-600 font-black text-xl mb-2">正在深度分析財務數據...</p>
-              <p className="text-slate-400 text-sm font-medium">這可能需要 10-20 秒，請稍候</p>
+              <p className="text-slate-400 text-sm font-medium">正在使用高效 Flash 模型計算中</p>
             </div>
           </div>
         ) : advice ? (
@@ -119,7 +119,7 @@ const FinancialAdvisor: React.FC<FinancialAdvisorProps> = ({ transactions, accou
               </div>
             </div>
             <div className="p-4 bg-blue-50/50 rounded-2xl text-center">
-              <p className="text-xs text-blue-400 font-medium">※ 以上建議由 Gemini 3 Pro AI 生成，僅供財務參考，具體投資行為請審慎評估。</p>
+              <p className="text-xs text-blue-400 font-medium">※ 以上建議由 Gemini 3 Flash AI 生成，數據來源於您的真實紀錄，僅供理財參考。</p>
             </div>
           </div>
         ) : (
@@ -131,7 +131,7 @@ const FinancialAdvisor: React.FC<FinancialAdvisorProps> = ({ transactions, accou
                 <div className="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center text-3xl">📊</div>
               </div>
               <p className="text-slate-500 font-medium max-w-xs leading-relaxed">
-                我已經準備好分析您的 {accounts.length} 個帳戶與 {transactions.length} 筆交易紀錄。
+                我將根據您的 {accounts.length} 個帳戶與 {transactions.length} 筆交易紀錄，為您提供省錢與理財的具體方向。
               </p>
             </div>
             <button
