@@ -18,18 +18,22 @@ const FinancialAdvisor: React.FC<FinancialAdvisorProps> = ({ transactions, accou
     if ((window as any).aistudio) {
       try {
         await (window as any).aistudio.openSelectKey();
-        // 假設成功並嘗試重新獲取
         setErrorState('NONE');
+        // 規範要求：觸發後直接繼續流程
         getAdvice();
       } catch (e) {
         console.error("Open key dialog failed", e);
       }
     } else {
-      alert("請在支援 AI Studio 的環境中開啟此功能，或在環境變數中設定 API_KEY。");
+      alert("環境不支援金鑰選擇對話框。請確保環境變數 API_KEY 已設定。");
     }
   };
 
   const getAdvice = async () => {
+    if (accounts.length === 0) {
+      alert("請先新增銀行帳戶資料，AI 才能根據您的資產狀況提供建議喔！");
+      return;
+    }
     setLoading(true);
     setErrorState('NONE');
     try {
@@ -48,62 +52,95 @@ const FinancialAdvisor: React.FC<FinancialAdvisorProps> = ({ transactions, accou
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn">
+    <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn pb-12">
       <div className="text-center space-y-4">
-        <div className="inline-block p-4 bg-gradient-to-tr from-blue-500 to-indigo-600 text-white rounded-3xl text-4xl mb-4 shadow-lg">
+        <div className="inline-block p-4 bg-gradient-to-tr from-blue-500 to-indigo-600 text-white rounded-3xl text-4xl mb-2 shadow-xl">
           🤖
         </div>
-        <h2 className="text-3xl font-bold text-slate-800">AI 智慧理財顧問</h2>
-        <p className="text-slate-500 max-w-lg mx-auto">
-          基於您的收支行為，由 Gemini 3 Pro 提供深度財務建議。
+        <h2 className="text-3xl font-black text-slate-800 tracking-tight">AI 智慧理財報告</h2>
+        <p className="text-slate-500 max-w-lg mx-auto font-medium">
+          Gemini 3 Pro 會分析您的資產配置、收支佔比與儲蓄率，提供專屬的財務健檢建議。
         </p>
       </div>
 
-      <div className="bg-white rounded-[2.5rem] border border-slate-100 p-10 shadow-xl min-h-[300px] flex items-center justify-center">
+      <div className="bg-white rounded-[3rem] border border-slate-100 p-8 md:p-12 shadow-2xl shadow-slate-200/50 min-h-[400px] flex flex-col items-center justify-center relative overflow-hidden">
+        {/* 背景裝飾 */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-16 -mt-16 opacity-50"></div>
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-indigo-50 rounded-full -ml-12 -mb-12 opacity-50"></div>
+
         {errorState === 'KEY_REQUIRED' ? (
-          <div className="text-center space-y-6 animate-scaleIn">
-            <div className="bg-rose-50 p-6 rounded-3xl border border-rose-100 inline-block">
-              <p className="text-rose-800 font-bold mb-1">未檢測到有效的 API 金鑰</p>
-              <p className="text-rose-600 text-sm">請點擊下方按鈕連結您的 Google AI API Key。</p>
+          <div className="text-center space-y-8 animate-scaleIn relative z-10">
+            <div className="bg-rose-50 p-8 rounded-[2.5rem] border border-rose-100 max-w-sm">
+              <div className="text-4xl mb-4">🔑</div>
+              <h4 className="text-rose-800 font-bold text-lg mb-2">需要 API 金鑰連結</h4>
+              <p className="text-rose-600 text-sm leading-relaxed">
+                由於本系統運行於安全環境，您需要連結自己的 Google AI API Key 才能啟動顧問功能。
+              </p>
             </div>
-            <br />
-            <div className="flex flex-col items-center gap-4">
-              <button
-                onClick={handleOpenKey}
-                className="px-10 py-4 bg-blue-600 text-white font-bold rounded-2xl shadow-xl hover:bg-blue-700 transition-all"
-              >
-                🔑 點此連結 API 金鑰
-              </button>
-              <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-xs text-slate-400 underline">為什麼需要這一步？</a>
-            </div>
+            <button
+              onClick={handleOpenKey}
+              className="px-12 py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl hover:bg-blue-700 transition-all hover:scale-105 active:scale-95"
+            >
+              立刻連結並啟動 AI
+            </button>
           </div>
         ) : loading ? (
-          <div className="flex flex-col items-center space-y-6">
-            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-blue-600 font-bold animate-pulse">正在運算您的財務數據...</p>
+          <div className="flex flex-col items-center space-y-8 animate-fadeIn relative z-10">
+            <div className="relative">
+              <div className="w-20 h-20 border-8 border-blue-100 rounded-full"></div>
+              <div className="w-20 h-20 border-8 border-blue-600 border-t-transparent rounded-full animate-spin absolute top-0"></div>
+            </div>
+            <div className="text-center">
+              <p className="text-blue-600 font-black text-xl mb-2">正在深度分析財務數據...</p>
+              <p className="text-slate-400 text-sm font-medium">這可能需要 10-20 秒，請稍候</p>
+            </div>
           </div>
         ) : advice ? (
-          <div className="w-full space-y-6 animate-fadeIn text-left">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <h3 className="text-xl font-bold text-slate-800">建議報告</h3>
-              <button onClick={getAdvice} className="text-blue-600 text-sm font-bold">重新分析</button>
+          <div className="w-full space-y-8 animate-fadeIn relative z-10">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-6">
+              <div className="flex items-center gap-3">
+                <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
+                <h3 className="text-2xl font-black text-slate-800">顧問建議摘要</h3>
+              </div>
+              <button 
+                onClick={getAdvice} 
+                className="text-blue-600 hover:text-blue-700 text-sm font-black flex items-center gap-1 bg-blue-50 px-4 py-2 rounded-xl transition-colors"
+              >
+                <span>🔄</span> 重新分析
+              </button>
             </div>
-            <div className="bg-slate-50 p-6 rounded-3xl whitespace-pre-wrap leading-relaxed text-slate-700">
-              {advice}
+            <div className="bg-slate-50/50 p-8 rounded-[2rem] border border-slate-100">
+              <div className="prose prose-slate max-w-none text-slate-700 leading-loose">
+                {advice.split('\n').map((line, i) => (
+                  <p key={i} className={`mb-4 ${line.startsWith('#') || line.includes('**') ? 'font-bold text-slate-900' : ''}`}>
+                    {line.replace(/\*\*/g, '')}
+                  </p>
+                ))}
+              </div>
             </div>
-          </div>
-        ) : errorState === 'API_ERROR' ? (
-          <div className="text-center space-y-4">
-            <p className="text-slate-500">AI 呼叫發生非預期錯誤</p>
-            <button onClick={getAdvice} className="px-6 py-2 bg-slate-100 rounded-xl font-bold">重試</button>
+            <div className="p-4 bg-blue-50/50 rounded-2xl text-center">
+              <p className="text-xs text-blue-400 font-medium">※ 以上建議由 Gemini 3 Pro AI 生成，僅供財務參考，具體投資行為請審慎評估。</p>
+            </div>
           </div>
         ) : (
-          <button
-            onClick={getAdvice}
-            className="px-10 py-4 bg-blue-600 text-white font-bold rounded-2xl shadow-xl hover:scale-105 transition-transform"
-          >
-            🚀 獲取 AI 理財建議
-          </button>
+          <div className="text-center space-y-10 relative z-10">
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex gap-4 mb-4">
+                <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-3xl">🏦</div>
+                <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center text-3xl">💰</div>
+                <div className="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center text-3xl">📊</div>
+              </div>
+              <p className="text-slate-500 font-medium max-w-xs leading-relaxed">
+                我已經準備好分析您的 {accounts.length} 個帳戶與 {transactions.length} 筆交易紀錄。
+              </p>
+            </div>
+            <button
+              onClick={getAdvice}
+              className="px-16 py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black rounded-[2rem] shadow-2xl shadow-blue-200 transition-all hover:scale-110 active:scale-95 text-lg"
+            >
+              🚀 生成我的理財建議報告
+            </button>
+          </div>
         )}
       </div>
     </div>
